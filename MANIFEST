@@ -1,0 +1,16 @@
+main/shrill
+share/shrill.glade
+share/noart.jpg
+share/shrill.gtkrc
+lib/Shrill/AlbumChooser.pm
+lib/Shrill/Backend.pm
+lib/Shrill/MyConfig.pm
+lib/Shrill/NowPlaying.pm
+lib/Shrill/Utility.pm
+tools/ogg_meta.pl
+Makefile.PL
+MANIFEST			This list of files
+README
+INSTALL
+sample.config
+META.yml                                 Module meta-data (added by MakeMaker)

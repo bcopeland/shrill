@@ -1,0 +1,37 @@
+# Edit these colors and fonts however you like.
+style "jstyle"
+{
+  font_name="Sans 14"
+  GtkButton::default_outside_border = { 1, 1, 1, 1 }
+
+  bg_pixmap[NORMAL]="<none>"
+  bg_pixmap[PRELIGHT]="<none>"
+  bg_pixmap[ACTIVE]="<none>"
+  bg_pixmap[INSENSITIVE]="<none>"
+  bg_pixmap[SELECTED]="<none>"
+
+  fg[NORMAL] = "#ffffff"
+  bg[NORMAL] = "#000000"
+  base[NORMAL] = "#111111"
+  text[NORMAL] = "#ffffff"
+
+  text[SELECTED] = "#222222"
+  base[SELECTED] = "#456b7f"
+}
+
+style "jstyle-image" = "jstyle"
+{
+  GtkWidget::focus-line-width = 3
+  GtkWidget::focus-line-pattern = "\0"
+
+  bg[NORMAL] = "#000000"
+  bg[PRELIGHT] = "#000000"
+  bg[INSENSITIVE] = "#000000"
+  fg[ACTIVE] = "#ffffff"
+  fg[NORMAL] = "#456b7f"
+  fg[PRELIGHT] = "#456b7f"
+}
+
+class "GtkWidget" style "jstyle"
+widget "album-image0" style "jstyle-image"
+class "GtkButton" style "jstyle-image"

@@ -1,0 +1,142 @@
+This is the README for Shrill, a GPLed jukebox written in Perl.  It is
+a frontend for the great digital audio jukebox server Mserv (www.mserv.org).
+
+INTRODUCTION
+
+Shrill is designed to operate like one of the computerized jukeboxes that
+you might find at a bar these days.  It is designed to run fullscreen and
+has a rather limited, but intuitive feature set: you just scroll around, 
+pick an album, pick a track, and it gets queued.  Thanks to Mserv, the 
+jukebox will automatically go into random play mode when nothing is 
+queued.
+
+I personally use this on my HTPC (which otherwise runs MythTV) and operate
+it by remote; for parties I can just leave it running and let others control
+the soundtrack.
+
+You can get the latest copy of this program at: 
+http://bobcopeland.com/shrill/
+
+CREDITS
+
+Thanks to Alon K. for the "no art" image.
+Bob Copeland (email@bobcopeland.com) had something to do with the 
+rest of this.
+
+INSTALL
+
+For the most part, just run "perl Makefile.PL && make install".  
+Look in the INSTALL file for complete installation directions.
+
+CONFIGURING SHRILL
+
+Configuration parameters are described in the comments of the sample.config.
+This file should be copied to ~/.shrill/config and edited to suit.  In
+particular, you must supply the connection parameters and login credentials
+for Mserv, and the path to your music collection.
+
+If you would like to use a different keyboard layout, you can get a list of
+available keys by running:
+
+$ perl -MGtk2::Gdk::Keysyms -e 'print join("\n", sort keys 
+  (%Gtk2::Gdk::Keysyms));'
+
+Shrill uses Gtk's built-in component traversal (up/down/left/right/tab) for
+moving around the album interface.
+
+You can do a certain amount of UI configuration by editing the gtkrc or the
+glade files.  Because those are likely installed in a system path, you can
+make copies of them and then override the appropriate lines in the config 
+file.  This is, for example, the only way at present to set the font size or
+the initial screen size.
+
+CONFIGURING MSERV
+
+Consult the Mserv documentation for particulars.  One thing to be aware of 
+is that mserv requires you to name albums once you start it up (or they 
+will show up as "!-Unindexed").  After you do this be sure to run 'sync' 
+so that the metadata gets written to disk (otherwise shrill will not be 
+able to see it), and then run 'reset' so that the albums will be reordered
+in alphabetical order (or else the album names will not match up with the
+tracks).  See the Troubleshooting section for more information.
+
+Also, if large parts of your collection are in Ogg Vorbis, you may
+want to take a look at ogg_meta.pl, contained in the tools directory.
+I wrote this to quickly load all of my albums using the vorbiscomment
+data.  It certainly saved a lot of time manually entering track titles
+and album names.
+
+GETTING ALBUM ART
+
+Shrill is pretty useless without album art for each album.  And alas,
+it contains no magic to get the album art either.  There are, however,
+existing utilities to do this for you in a batch process.  Try this:
+
+http://kempele.fi/~skyostil/projects/albumart/
+
+Once you have downloaded the album covers, run shrill and make sure the images
+are correct.  Sometimes, a tool will download 1x1 gifs or the wrong album
+cover.  Shrill will always pick the largest image file in the directory (by
+file size), so keep this in mind.
+
+TROUBLESHOOTING
+
+Here are a few gotchas that you may encounter using Shrill.  If you 
+experience a problem, using a different mserv client (or telnetting
+directly to the mserv port) might narrow down where to look.
+
+* I run the application and it tells me "No albums found!".
+
+First, make sure you added some music to mserv in the first place.  Next 
+check your music directory set in ~/.shrill/config.  If this is set 
+correctly, verify that both the mserv_meta_dir and music_dir match up 
+to the corresponding configurations for Mserv.  Try 'locate mservtrackinfo'
+for example to find the mserv_meta_dir.
+
+* The albums are in the wrong order.  When I select an album it shows
+the tracks for something else.
+
+By far the most common annoyance in the system is that Mserv and
+Shrill can get out of sync.  This can happen when you add new music
+to your directory that Mserv doesn't know about.  Because Shrill
+fiddles around with Mserv's metadata behind its back, there is ample
+opportunity for things to get messed up -- for the albums in the
+interface to not match the track list.
+
+Shrill uses (or tries to use) the same album numbering system as Mserv.  
+However it doesn't know when you update Mserv's state (e.g. by running the
+sync command to rename an album).  Therefore to add new music, a hopefully
+infrequent process, be sure to follow these steps in order:
+
+ 1. If applicable, create the new metadata files on disc by running 
+ ogg_meta.pl.
+ 2. Make certain all the directories in Mserv's 'mservtrackinfo' directory
+ are writeable by the Mserv process.
+ 3. Telnet to the server and type 'sync' to cause Mserv to read/generate 
+ metadata for new music.  IMPORTANT: make sure Mserv has write access to
+ its metadata directory or else it will make the changes in memory but 
+ not on disk.
+ 4. While connected to the server type 'reset'.  This will cause Mserv to 
+ renumber the albums in sorted order instead of their earlier ordering.
+
+In general, try the sync/reset sequence, and restart Shrill to get them on
+the same page.
+
+* Even though I have an image, I still get the no-art image.
+
+Your image may be a format that GDK doesn't understand, or GDK is otherwise
+unable to open it.  Shrill catches any exceptions thrown and tries the no-art
+image in such cases.  I have seen one instance where high ascii characters in
+the directory name caused GDK to crap out.  Hopefully this will be fixed in a 
+future version of the Gtk2 bindings.
+
+* It doesn't look like the screenshot.  The buttons are all wack.
+
+If you use a gtk theme that uses engines for button borders and so forth, 
+the image buttons may look strange.  I don't know how to override all of 
+this stuff in a gtkrc, so if anyone has pointers send them my way.
+
+* It takes a long, long time to start up
+
+Yeah, I know.  It has to traverse a ton of directories at startup if you have 
+a sizeable music collection.  I may address this in a future version.

@@ -1,0 +1,254 @@
+#!/usr/bin/perl
+
+eval 'exec /usr/bin/perl  -S $0 ${1+"$@"}'
+    if 0; # not running under some shell
+# Shrill - a jukebox program
+# Copyright (C) 2005  Bob Copeland (email@bobcopeland.com)
+# 
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+use Gtk2;
+use Gtk2::GladeXML;
+use Gtk2::SimpleList;
+use strict;
+
+use Shrill::Backend;
+use Shrill::NowPlaying;
+use Shrill::AlbumChooser;
+use Shrill::MyConfig;
+
+my $config = Shrill::MyConfig->new;
+
+my $backend = Shrill::Backend->new($config);
+
+Gtk2::Rc->add_default_file($config->{'gtkrc_file'});
+Gtk2::init();
+
+if (@{$backend->{albums}} == 0)
+{
+    my $dlg = Gtk2::MessageDialog->new(undef, 'modal', 'error', 'ok', 
+        'No albums found!  Check your config or add some music to mserv.');
+    $dlg->run;
+    $dlg->destroy;
+    exit;
+}
+
+my $rows = $config->{'chooser_rows'};
+my $cols = $config->{'chooser_cols'};
+
+my $gladexml = Gtk2::GladeXML->new($config->{'glade_file'});
+my $window = $gladexml->get_widget('main_window');
+my $notebook = $gladexml->get_widget('pages');
+
+my $first_image = 0;
+
+my $tracklist = Gtk2::SimpleList->new_from_treeview(
+    $gladexml->get_widget('slist'), 
+    'Track' => 'text',
+    'Duration' => 'text',
+    'AlbumId' => 'scalar',
+    'TrackId' => 'scalar');
+
+my $now_playing = Shrill::NowPlaying->new($config, $gladexml, $backend);
+my $chooser = Shrill::AlbumChooser->new($config, $gladexml, $backend, \&show_tracks);
+
+
+my %key_map = (
+  $config->{'key_prev_page'} => sub { 
+      my $page = $notebook->get_current_page();
+      if ($page == 1) { 
+          advance_albums(-$rows*$cols); 
+          return 1;
+      }
+      return 0;
+  },
+  $config->{'key_next_page'} => sub { 
+      my $page = $notebook->get_current_page();
+      if ($page == 1) { 
+          advance_albums($rows*$cols); 
+          return 1;
+      }
+      return 0;
+  },
+  $config->{'key_activate'} => sub { 
+      my $page = $notebook->get_current_page();
+      if ($page == 0) 
+      {
+          $notebook->set_current_page($page+1); 
+          return 1;
+      }
+      return 0;
+  },
+  $config->{'key_escape'} => sub { 
+      my $page = $notebook->get_current_page();
+
+      if ($page == 0)
+      {
+          my $dlg = Gtk2::MessageDialog->new($window, 'modal', 'question', 
+            'yes-no', 'Exit Shrill?');
+          $dlg->set_decorated(0);
+          my $resp = $dlg->run;
+          $dlg->destroy;
+
+          if ('yes' eq $resp)
+          {
+              Gtk2->main_quit;
+          }
+      }
+      else
+      {
+          $page = $page-1;
+          $notebook->set_current_page($page); 
+      }
+      return 1;
+  },
+  $config->{'key_play'} => sub {
+      $backend->play();
+      1;
+  },
+  $config->{'key_next_track'} => sub {
+      $backend->next_track();
+      1;
+  },
+  $config->{'key_stop'} => sub { 
+      $backend->stop();
+      1;
+  },
+  $config->{'key_quit'} => sub {
+      Gtk2->main_quit;
+      1;
+  },
+);
+
+# hide album and track columns, we just use them to store data conveniently
+my @columns = $tracklist->get_columns();
+$columns[2]->set_visible(0);
+$columns[3]->set_visible(0);
+$columns[1]->set_alignment(1.0);
+$columns[1]->set_expand(1);
+
+$tracklist->signal_connect( 'row_activated' => sub {
+    my ($widget, $path, $column) = @_;
+    my $row = $widget->get_row_data_from_path($path);
+
+    my ($album, $track) = (@{$row}[2], @{$row}[3]);
+    $backend->queue_file($album->{'id'}, $track->{'number'});
+    my $dlg = Gtk2::MessageDialog->new($window, 'modal', 'info', 'ok', 
+        'Track queued!');
+    $dlg->set_decorated(0);
+    $dlg->run;
+    $dlg->destroy;
+});
+    
+
+$window->signal_connect( 'key_press_event' => \&key_press_cb );
+
+if ($config->{'fullscreen'})
+{
+    $window->fullscreen;
+}
+$window->show_all;
+
+my ($album, $track, $time) = $backend->get_current_track();
+
+if (defined($album))
+{
+    $now_playing->notify_track_changed($album, $track, $time);
+    $chooser->notify_track_changed($album, $track);
+}
+else
+{
+    if ($config->{'play_on_start'})
+    {
+        $backend->play();
+    }
+    else
+    {
+        # go directly to chooser if nothing is playing.
+        $notebook->set_current_page(1);
+    }
+}
+
+$now_playing->notify_queue_changed();
+
+if ($config->{'stop_on_exit'})
+{
+    Gtk2->quit_add(Gtk2->main_level, sub { $backend->stop(); } );
+}
+Gtk2->quit_add(Gtk2->main_level, sub { $window->hide(); } );
+
+$SIG{INT} = sub { Gtk2->main_quit; };
+
+Gtk2->main;
+
+sub key_press_cb
+{
+    my ($widget, $event) = @_;
+
+    my $key = Gtk2::Gdk->keyval_name($event->keyval);
+
+    if (defined($key_map{$key}))
+    {
+        return &{ $key_map{$key} };
+    }
+    0;
+}
+
+sub next_page
+{
+    my ($widget);
+    $notebook->set_current_page($notebook->get_current_page() + 1);
+}
+
+sub show_tracks
+{
+    my ($widget, $album) = @_;
+
+    my @tracks = $backend->get_tracks($album->{'id'});
+
+    my $tlabel = $gladexml->get_widget('stitle');
+    $tlabel->set_markup("<b>" . 
+        Shrill::Utility::escape_xml($album->{'album'}) . "</b>");
+    my $alabel = $gladexml->get_widget('sartist');
+    $alabel->set_text($album->{'artist'});
+
+    @{$tracklist->{'data'}} = ();
+    foreach my $track (@tracks)
+    {
+        my $text = $track->{'number'} . ". " . 
+                $track->{'title'};
+
+        push @{$tracklist->{'data'}}, [ "$text", $track->{'duration'}, 
+            $album, $track ];
+    }
+
+    next_page($widget);
+}
+
+sub advance_albums
+{
+    my ($count) = @_;
+
+    my $max = @{ $backend->{'albums'} };
+    ($first_image + $count >= $max) && return; 
+ 
+    $first_image += $count;
+    if ($first_image < 0) 
+    {
+        $first_image = 0;
+    }
+    $chooser->load_album_images($first_image);
+}
+

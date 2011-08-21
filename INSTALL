@@ -1,0 +1,33 @@
+PREREQUISITES
+
+To use this application, you need to have Perl with the GTK2 bindings, 
+including GladeXML, and a recent version of mserv (I use 0.35).  These are 
+both probably available from your distribution.  In debian unstable: 
+
+# apt-get install mserv libgtk2-perl libgtk2-gladexml
+
+For the ogg_info.pl script in the tools directory, you will also need 
+Ogg::Vorbis::Header::PurePerl (libogg-vorbis-header-pureperl-perl).
+
+You should use some other tool to get the album art for your collection.
+Shrill looks for the largest file with an extension of jpg, jpeg, png
+or gif in a given album directory.
+
+INSTALLATION
+
+Shrill is installed via the usual perl installation methodology, viz.:
+
+$ perl Makefile.PL
+$ make
+$ su
+# make install
+
+Now run:
+$ shrill
+
+This will create a new copy of the config file and store it in your
+user directory (~/.shrill/config).  Edit it to suit, and then run shrill
+once more to use the application.  
+
+Refer to the README for more information.
+
